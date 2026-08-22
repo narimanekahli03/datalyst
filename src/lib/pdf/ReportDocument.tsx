@@ -327,7 +327,7 @@ export function ReportDocument({
         )}
 
         <View style={styles.footer} fixed>
-          <Text>Data Cleaning Studio</Text>
+          <Text>Datalyst</Text>
           <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`} />
         </View>
       </Page>

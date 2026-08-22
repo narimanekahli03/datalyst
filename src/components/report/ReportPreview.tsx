@@ -70,7 +70,7 @@ export function ReportPreview({ dataset }: ReportPreviewProps) {
         )}
 
         <div className="mt-10 flex items-center justify-between border-t border-[#e1e0d9] pt-3 text-[10px] text-[#898781]">
-          <span>Généré avec Data Cleaning Studio</span>
+          <span>Généré avec Datalyst</span>
           <span>Page 1</span>
         </div>
       </div>

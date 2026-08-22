@@ -34,7 +34,7 @@ from app.sql_safety import SqlSafetyError, validate_read_only_sql
 
 logging.basicConfig(level=logging.INFO)
 
-app = FastAPI(title="Data Cleaning Studio — API text-to-SQL")
+app = FastAPI(title="Datalyst — API text-to-SQL")
 
 app.add_middleware(
     CORSMiddleware,

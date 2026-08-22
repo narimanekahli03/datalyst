@@ -1,4 +1,4 @@
-# Data Cleaning Studio
+# Datalyst
 
 SaaS d'analyse de données 100% navigateur : chargez un fichier, nettoyez-le, explorez-le,
 visualisez-le, interrogez-le en langage naturel grâce à l'IA, et générez un rapport PDF.

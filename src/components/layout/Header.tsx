@@ -56,7 +56,7 @@ export function Header() {
           </div>
           <div className="hidden whitespace-nowrap leading-tight lg:block">
             <p className="text-sm font-semibold tracking-tight text-foreground">
-              Data Cleaning Studio
+              Datalyst
             </p>
             <p className="text-[11px] text-muted-foreground">Collecte &amp; nettoyage des données</p>
           </div>
