@@ -7,6 +7,7 @@ dist-ssr
 # Local Claude Code project instructions/state — not part of the public portfolio repo
 CLAUDE.md
 .claude/
+.mcp.json
 
 .vscode/*
 !.vscode/extensions.json
