@@ -1,0 +1,21 @@
+ID,Nom,Email,Age,Ville,Pays,Date_inscription,Actif,Montant_achat
+1,Alice Dupont,alice.dupont@email.com,29,Paris,France,2023-05-12,Oui,129.90
+2,"  Bob   Martin ",bob.martin@email.com,,Lyon,France,12/06/2023,Non,"89,50"
+3,Chloé Bernard,chloe.bernard@email.com,34,Marseille,France,2023-07-01,oui,245.00
+4,David Roux,david.roux@email,41,,France,not-a-date,Non,15.75
+1,Alice Dupont,alice.dupont@email.com,29,Paris,France,2023-05-12,Oui,129.90
+6,Emma Petit,,26,Toulouse,France,2023-08-20,Oui,
+7,"François  Noel",francois.noel@email.com,,Nice,France,2023-01-15,Non,"310,20"
+8,Bob Martin,bob.martin@email.com,45,Lyon,France,12/06/2023,non,"89,50"
+9,Giulia Rossi,giulia.rossi@email.com,31,Bordeaux,Italie,2023-09-05,Oui,178.40
+10,Hugo Lefevre,hugo.lefevre@email.com,trente-huit,Lille,France,2023-02-28,Oui,92.00
+11," ",inconnu@email.com,50,Strasbourg,France,2023-03-11,Non,"54,30"
+12,Isabelle Moreau,isabelle.moreau@email.com,,Rennes,France,,Oui,
+13,Jean Petit,jean.petit@email.com,29,Nantes,France,2023-04-22,Oui,129.90
+14,Karim Haddad,karim.haddad@email.com,37,"Paris ",France,2023-06-18,oui,"201,15"
+1,Alice Dupont,alice.dupont@email.com,29,Paris,France,2023-05-12,Oui,129.90
+16,Laura Simon,laura.simon@email.com,,,,,,
+17,Marc Dubois,marc.dubois@email.com,52,Lyon,France,2023-07-30,Non,415.60
+18,Nina Fontaine,nina.fontaine@email.com,24,Marseille,France,2023-08-02,Oui,-25.00
+19,Omar Cherif,omar.cherif@email.com,29,Paris,France,2023-05-12,Oui,129.90
+1,Alice Dupont,alice.dupont@email.com,29,Paris,France,2023-05-12,Oui,129.90

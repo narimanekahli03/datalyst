@@ -1,0 +1,200 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+
+    /* Page plane vs. card surface — page is a hair darker than cards */
+    --background: 60 12% 97%;
+    --surface: 60 14% 99%;
+    --foreground: 0 0% 4%;
+
+    --card: 60 14% 99%;
+    --card-foreground: 0 0% 4%;
+
+    --popover: 60 14% 99%;
+    --popover-foreground: 0 0% 4%;
+
+    /* Brand accent — validated categorical slot 1 / sequential hue (blue) */
+    --primary: 212 68% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --accent: 212 68% 50%;
+    --accent-foreground: 0 0% 100%;
+    --accent-strong: 212 76% 40%;
+
+    --secondary: 60 9% 94%;
+    --secondary-foreground: 0 0% 4%;
+
+    --muted: 60 9% 94%;
+    --muted-foreground: 40 4% 53%;
+    --subtle-foreground: 45 3% 55%;
+
+    --destructive: 0 66% 52%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 120 89% 32%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 40 98% 49%;
+    --warning-foreground: 0 0% 4%;
+
+    --border: 48 12% 87%;
+    --input: 48 12% 87%;
+    --ring: 212 68% 50%;
+
+    --radius: 0.75rem;
+
+    /* Sequential blue ramp — for meters / magnitude encoding */
+    --seq-100: 213 84% 89%;
+    --seq-250: 212 78% 74%;
+    --seq-400: 212 68% 60%;
+    --seq-500: 212 68% 50%;
+    --seq-700: 213 76% 24%;
+  }
+
+  :root.dark {
+    color-scheme: dark;
+
+    --background: 60 2% 5%;
+    --surface: 60 2% 10%;
+    --foreground: 0 0% 100%;
+
+    --card: 60 2% 10%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 60 2% 11%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 213 76% 58%;
+    --primary-foreground: 0 0% 6%;
+
+    --accent: 213 76% 58%;
+    --accent-foreground: 0 0% 6%;
+    --accent-strong: 213 84% 72%;
+
+    --secondary: 60 2% 15%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 60 2% 15%;
+    --muted-foreground: 48 6% 73%;
+    --subtle-foreground: 45 3% 55%;
+
+    --destructive: 0 74% 68%;
+    --destructive-foreground: 0 0% 6%;
+
+    --success: 120 84% 35%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 40 98% 49%;
+    --warning-foreground: 0 0% 6%;
+
+    --border: 60 2% 19%;
+    --input: 60 2% 19%;
+    --ring: 213 76% 58%;
+
+    --seq-100: 213 40% 20%;
+    --seq-250: 212 55% 35%;
+    --seq-400: 213 76% 58%;
+    --seq-500: 213 76% 58%;
+    --seq-700: 213 84% 82%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "ss01";
+  }
+
+  ::selection {
+    @apply bg-accent/20;
+  }
+
+  @keyframes toast-progress {
+    from {
+      transform: scaleX(1);
+    }
+    to {
+      transform: scaleX(0);
+    }
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Soft radial mesh used behind the empty-state hero. Two accent-tinted
+     blobs plus a faint grid; kept subtle so text stays the loudest thing. */
+  .bg-hero-mesh {
+    background-image:
+      radial-gradient(560px circle at 12% 8%, hsl(var(--accent) / 0.16), transparent 60%),
+      radial-gradient(480px circle at 88% 18%, hsl(280 60% 60% / 0.10), transparent 55%),
+      linear-gradient(hsl(var(--border) / 0.5) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.5) 1px, transparent 1px);
+    background-size: auto, auto, 44px 44px, 44px 44px;
+    background-position: 0 0, 0 0, center, center;
+    -webkit-mask-image: radial-gradient(ellipse 100% 70% at 50% 0%, black 45%, transparent 100%);
+    mask-image: radial-gradient(ellipse 100% 70% at 50% 0%, black 45%, transparent 100%);
+  }
+  .dark .bg-hero-mesh {
+    background-image:
+      radial-gradient(560px circle at 12% 8%, hsl(var(--accent) / 0.28), transparent 60%),
+      radial-gradient(480px circle at 88% 18%, hsl(280 70% 65% / 0.20), transparent 55%),
+      linear-gradient(hsl(0 0% 100% / 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(0 0% 100% / 0.07) 1px, transparent 1px);
+    background-size: auto, auto, 44px 44px, 44px 44px;
+    background-position: 0 0, 0 0, center, center;
+  }
+
+  .shadow-soft {
+    box-shadow:
+      0 1px 2px hsl(0 0% 0% / 0.04),
+      0 2px 8px -2px hsl(0 0% 0% / 0.06);
+  }
+  .dark .shadow-soft {
+    box-shadow:
+      0 1px 2px hsl(0 0% 0% / 0.3),
+      0 4px 16px -4px hsl(0 0% 0% / 0.4);
+  }
+
+  .shadow-elevated {
+    box-shadow:
+      0 4px 12px -2px hsl(0 0% 0% / 0.08),
+      0 12px 32px -8px hsl(0 0% 0% / 0.10);
+  }
+  .dark .shadow-elevated {
+    box-shadow:
+      0 4px 12px -2px hsl(0 0% 0% / 0.4),
+      0 16px 40px -8px hsl(0 0% 0% / 0.5);
+  }
+}
