@@ -1,5 +1,7 @@
 # Datalyst
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/narimanekahli03/datalyst)
+
 SaaS d'analyse de données 100% navigateur : chargez un fichier, nettoyez-le, explorez-le,
 visualisez-le, interrogez-le en langage naturel grâce à l'IA, et générez un rapport PDF.
 
@@ -141,10 +143,19 @@ synchronisés à la main.
 Tous les endpoints IA renvoient une erreur `429` avec un message explicite en cas de dépassement
 du quota Mistral (le plan gratuit est limité à 2 requêtes par minute).
 
+## Déploiement
+
+Le `Dockerfile` build le frontend puis sert le tout (frontend statique + API) depuis un seul
+process FastAPI sur un seul port — déployable tel quel sur n'importe quel hébergeur Docker.
+
+Bouton "Deploy to Render" ci-dessus, ou manuellement via `render.yaml` (Blueprint) : connectez
+le dépôt sur [render.com](https://render.com), Render détecte `render.yaml` automatiquement.
+Seule variable à renseigner à la main : `MISTRAL_API_KEY` (jamais commitée).
+
 ## Limites connues
 
 - **Aucun test automatisé** n'existe encore, ni côté frontend ni côté backend.
 - Le chunk JS principal du build frontend fait environ 960 Ko gzippé, à cause de l'import
   statique de `duckdb-wasm` — un import dynamique réglerait ça (non fait à ce jour).
-- Le `Dockerfile` fournit un build de production (frontend statique servi par le backend
-  FastAPI, un seul port) mais n'a pas encore été testé en conditions réelles de déploiement.
+- Le tier gratuit Render met le service en veille après 15 min d'inactivité : la première
+  requête après une pause peut prendre 30-50 secondes (redémarrage à froid).
