@@ -1,7 +1,9 @@
 import logging
+import os
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from app.config import CORS_ALLOWED_ORIGINS
@@ -163,3 +165,11 @@ def agent_step(request: AgentStepRequest) -> AgentStepResponse:
         return response
 
     raise HTTPException(status_code=502, detail="L'agent a renvoyé une réponse dans un format inattendu.")
+
+
+# In the Docker deployment (Hugging Face Space), this backend also serves the
+# built frontend so the whole app runs behind a single origin/port. Absent
+# locally, so `uvicorn --reload` during dev is unaffected.
+_STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "static")
+if os.path.isdir(_STATIC_DIR):
+    app.mount("/", StaticFiles(directory=_STATIC_DIR, html=True), name="static")

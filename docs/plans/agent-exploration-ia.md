@@ -145,7 +145,7 @@ localisé :
 ## Vérification
 
 **Non-régression du mode existant :**
-1. Lancer les deux serveurs (voir CLAUDE.md — `npm run dev` + `uvicorn` dans
+1. Lancer les deux serveurs (voir README.md — `npm run dev` + `uvicorn` dans
    `backend/`).
 2. Charger un dataset, onglet "Interroger" : le toggle apparaît avec "Poser une
    question" sélectionné par défaut, l'UI est visuellement identique à avant.

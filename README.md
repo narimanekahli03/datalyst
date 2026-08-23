@@ -34,7 +34,7 @@ indépendantes (deux process, deux serveurs de dev).
 ## Structure du projet
 
 ```
-Projet Data/
+Datalyst/
 ├── src/
 │   ├── pages/              # Une page par étape du parcours
 │   ├── components/         # UI, groupée par domaine (cleaning/, dashboard/, query/, report/, ui/, ...)
@@ -50,7 +50,8 @@ Projet Data/
 │   │   └── sql_safety.py     # Validation SQL lecture seule (AST via sqlglot)
 │   ├── requirements.txt
 │   └── .env.example          # Modèle vide — copier en .env avec vos propres valeurs
-└── CLAUDE.md                 # Conventions du projet, pour Claude Code
+├── Dockerfile                # Build multi-stage (frontend statique + backend FastAPI)
+└── docs/plans/                # Historique des plans de fonctionnalités
 ```
 
 ## Prérequis
@@ -131,6 +132,7 @@ Base URL locale : `http://localhost:8000`. Toutes les routes sont en `POST`, sau
 | `POST /fix-sql` | SQL en échec + message d'erreur DuckDB → SQL corrigé |
 | `POST /summarize` | Question + résultat de requête → résumé en langage naturel (français) |
 | `POST /generate-insights` | Statistiques agrégées du dataset → 3 à 5 observations classées par catégorie |
+| `POST /agent-step` | Agent d'exploration autonome : à partir de l'historique de ses propres requêtes, propose la prochaine requête SQL à exécuter ou conclut avec un résumé + observations |
 
 Le contrat exact des requêtes/réponses est défini dans `backend/app/schemas.py` (Pydantic) et
 `src/types/textToSql.ts` / `src/types/insights.ts` (TypeScript) — les deux doivent rester
@@ -144,5 +146,5 @@ du quota Mistral (le plan gratuit est limité à 2 requêtes par minute).
 - **Aucun test automatisé** n'existe encore, ni côté frontend ni côté backend.
 - Le chunk JS principal du build frontend fait environ 960 Ko gzippé, à cause de l'import
   statique de `duckdb-wasm` — un import dynamique réglerait ça (non fait à ce jour).
-- Pas de configuration de déploiement (Docker, hébergement) — le projet ne tourne aujourd'hui
-  qu'en local.
+- Le `Dockerfile` fournit un build de production (frontend statique servi par le backend
+  FastAPI, un seul port) mais n'a pas encore été testé en conditions réelles de déploiement.

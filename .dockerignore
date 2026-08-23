@@ -1,0 +1,13 @@
+node_modules
+dist
+dist-ssr
+backend/.venv
+backend/__pycache__
+backend/.env
+.git
+.claude
+.mcp.json
+CLAUDE.md
+docs
+tasks
+*.tsbuildinfo
