@@ -156,3 +156,4 @@ class AgentStepResponse(BaseModel):
     chart_aggregation: ChartAggregation | None = None
     summary: str | None = None
     findings: list[Insight] = Field(default_factory=list)
+    error_message: str | None = None

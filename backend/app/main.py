@@ -139,33 +139,31 @@ def _validate_agent_sql(sql: str | None, table_name: str) -> str:
 
 def _validate_chart_fields(
     x_field: str | None, y_fields: list[str] | None, schema: DatasetSchema
-) -> tuple[str, list[str]]:
+) -> str | None:
     """Used only by /agent-step's 'chart' action. Checks the agent's chosen
     columns actually exist in the schema, and that every Y (measure) column is
     numeric — chartData.ts renders a bar/line/area chart with visible axes but
     no bars/lines for a non-numeric measure, which looks broken with no
-    explanation, so this is worth catching before it reaches the dashboard."""
+    explanation, so this is worth catching before it reaches the dashboard.
+
+    Returns an error message on failure, None on success — deliberately NOT an
+    HTTPException: a bad column name is agent-recoverable content the same way
+    a failed SQL execution is (see the 'query' action's error_message path),
+    not a hard protocol failure. The caller wraps this into a normal 200
+    response with error_message set, so the frontend loop can feed it back
+    into history and continue instead of aborting the whole run."""
     if not x_field or not y_fields:
-        raise HTTPException(
-            status_code=422, detail="L'agent n'a pas proposé de colonnes valides pour le graphique."
-        )
+        return "L'agent n'a pas proposé de colonnes valides pour le graphique."
     columns_by_name = {c.name: c for c in schema.columns}
     if x_field not in columns_by_name:
-        raise HTTPException(
-            status_code=422, detail=f"Colonne inconnue proposée par l'agent pour l'axe X : {x_field}"
-        )
+        return f"Colonne inconnue proposée pour l'axe X : {x_field}"
     for y_field in y_fields:
         column = columns_by_name.get(y_field)
         if column is None:
-            raise HTTPException(
-                status_code=422, detail=f"Colonne inconnue proposée par l'agent pour la mesure : {y_field}"
-            )
+            return f"Colonne inconnue proposée pour la mesure : {y_field}"
         if column.type != "number":
-            raise HTTPException(
-                status_code=422,
-                detail=f"La colonne \"{y_field}\" n'est pas numérique, elle ne peut pas être une mesure.",
-            )
-    return x_field, y_fields
+            return f"La colonne \"{y_field}\" n'est pas numérique, elle ne peut pas être une mesure."
+    return None
 
 
 @app.post("/agent-step", response_model=AgentStepResponse)
@@ -179,9 +177,18 @@ def agent_step(request: AgentStepRequest) -> AgentStepResponse:
         return AgentStepResponse(action="query", sql=sql, reasoning=data.get("reasoning") or "")
 
     if action == "chart":
-        x_field, y_fields = _validate_chart_fields(
-            data.get("chart_x_field"), data.get("chart_y_fields"), request.schema_
-        )
+        x_field = data.get("chart_x_field")
+        y_fields = data.get("chart_y_fields")
+        chart_error = _validate_chart_fields(x_field, y_fields, request.schema_)
+        if chart_error:
+            return AgentStepResponse(
+                action="chart",
+                reasoning=data.get("reasoning") or "",
+                chart_title=data.get("chart_title"),
+                chart_x_field=x_field,
+                chart_y_fields=y_fields,
+                error_message=chart_error,
+            )
         try:
             return AgentStepResponse(
                 action="chart",

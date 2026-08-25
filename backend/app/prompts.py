@@ -276,13 +276,21 @@ def _format_agent_history(history: list[AgentStepRecord]) -> str:
     blocks = []
     for i, step in enumerate(history, start=1):
         if step.action == "chart":
-            block = [
-                f"Étape {i} (graphique ajouté) :",
-                f"Titre : {step.chart_title}",
-                f"Type : {step.chart_type}, X : {step.chart_x_field}, "
-                f"Y : {step.chart_y_fields}, agrégation : {step.chart_aggregation}",
-                f"Raisonnement : {step.reasoning}",
-            ]
+            if step.error_message:
+                block = [
+                    f"Étape {i} (graphique — ÉCHEC) :",
+                    f"Tentative : X = {step.chart_x_field}, Y = {step.chart_y_fields}",
+                    f"Raisonnement : {step.reasoning}",
+                    f"Résultat : ÉCHEC — {step.error_message}",
+                ]
+            else:
+                block = [
+                    f"Étape {i} (graphique ajouté) :",
+                    f"Titre : {step.chart_title}",
+                    f"Type : {step.chart_type}, X : {step.chart_x_field}, "
+                    f"Y : {step.chart_y_fields}, agrégation : {step.chart_aggregation}",
+                    f"Raisonnement : {step.reasoning}",
+                ]
         else:
             block = [f"Étape {i} (requête) :", f"SQL : {step.sql}", f"Raisonnement : {step.reasoning}"]
             if step.error_message:
@@ -305,7 +313,7 @@ def build_agent_step_user_message(request: AgentStepRequest) -> str:
     # haven't done X yet" reminders far more reliably than a standing
     # instruction buried in the system prompt (empirically 0/5 chart
     # choices on a fresh history before this was added).
-    has_chart = any(step.action == "chart" for step in request.history)
+    has_chart = any(step.action == "chart" and not step.error_message for step in request.history)
     chart_reminder = (
         "\n\nRappel : tu n'as encore ajouté aucun graphique. Si une colonne catégorielle et une "
         "colonne numérique du schéma s'y prêtent, c'est le moment d'utiliser \"action\": \"chart\" "

@@ -92,28 +92,34 @@ export function AgentExplorationPanel({ dataset }: AgentExplorationPanelProps) {
                 {entry.reasoning && (
                   <p className="text-sm italic text-muted-foreground">{entry.reasoning}</p>
                 )}
-                {entry.action === "chart" && entry.chart ? (
-                  <div className="space-y-1.5">
-                    <div className="h-[236px] overflow-hidden rounded-lg border border-border bg-background/50 p-2">
-                      <ChartRenderer
-                        config={{
-                          id: `agent-preview-${entry.stepNumber}`,
-                          title: entry.chart.title,
-                          type: entry.chart.type,
-                          xField: entry.chart.xField,
-                          yFields: entry.chart.yFields,
-                          aggregation: entry.chart.aggregation,
-                          groupByField: null,
-                          createdAt: 0,
-                        }}
-                        dataset={dataset}
-                        compact
-                      />
+                {entry.action === "chart" ? (
+                  entry.chart ? (
+                    <div className="space-y-1.5">
+                      <div className="h-[236px] overflow-hidden rounded-lg border border-border bg-background/50 p-2">
+                        <ChartRenderer
+                          config={{
+                            id: `agent-preview-${entry.stepNumber}`,
+                            title: entry.chart.title,
+                            type: entry.chart.type,
+                            xField: entry.chart.xField,
+                            yFields: entry.chart.yFields,
+                            aggregation: entry.chart.aggregation,
+                            groupByField: null,
+                            createdAt: 0,
+                          }}
+                          dataset={dataset}
+                          compact
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        → Graphique « {entry.chart.title} » ajouté au tableau de bord
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      → Graphique « {entry.chart.title} » ajouté au tableau de bord
+                  ) : (
+                    <p className="text-xs text-destructive">
+                      → Échec de l'ajout du graphique : {entry.errorMessage}
                     </p>
-                  </div>
+                  )
                 ) : (
                   <>
                     {entry.sql && <SqlCodeBlock sql={entry.sql} />}

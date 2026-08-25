@@ -82,6 +82,38 @@ export const useAgentExplorationStore = create<AgentExplorationStore>((set, get)
 
       if (response.action === "chart") {
         const reasoning = response.reasoning ?? "";
+
+        if (response.error_message) {
+          // Content-level failure (bad column name/type), not a network error —
+          // the backend already returned 200. Feed it back into history like a
+          // failed query, so the agent can see it and try again next step
+          // instead of the whole run aborting.
+          const errorMessage = response.error_message;
+          history.push({
+            action: "chart",
+            reasoning,
+            chart_title: response.chart_title ?? null,
+            chart_x_field: response.chart_x_field ?? null,
+            chart_y_fields: response.chart_y_fields ?? null,
+            error_message: errorMessage,
+          });
+          set((state) => ({
+            trail: [
+              ...state.trail,
+              {
+                stepNumber,
+                action: "chart",
+                reasoning,
+                sql: null,
+                result: null,
+                chart: null,
+                errorMessage,
+              },
+            ],
+          }));
+          continue;
+        }
+
         const title = response.chart_title ?? "Graphique";
         const type = response.chart_type ?? "bar";
         const xField = response.chart_x_field ?? "";

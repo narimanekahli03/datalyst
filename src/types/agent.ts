@@ -41,6 +41,7 @@ export interface AgentStepResponse {
   chart_aggregation?: AggregationType;
   summary?: string;
   findings?: Insight[];
+  error_message?: string;
 }
 
 /** One entry in the live trail rendered in the UI — the step plus its outcome. */

@@ -94,3 +94,58 @@ portant le cadre à 236px (220 + padding).
   "Interroger", pas seulement depuis le tableau de bord lui-même.
 - `npm run build` (tsc -b + vite build) et l'import de `app.main` passent sans erreur après
   toutes les modifications.
+
+---
+
+## Robustesse de l'agent — les échecs de graphique n'interrompent plus toute la run
+
+Plan complet : [docs/plans/agent-robustesse-graphique.md](../docs/plans/agent-robustesse-graphique.md)
+
+### Plan
+- [x] Backend : `AgentStepResponse.error_message` ajouté (schemas.py)
+- [x] Backend : `_validate_chart_fields` retourne une erreur au lieu de lever une `HTTPException`
+  (main.py) — une colonne invalide devient un 200 avec `error_message`, plus un 422 fatal
+- [x] Backend : `_format_agent_history` affiche `ÉCHEC` pour une entrée chart en erreur + le
+  rappel dynamique ignore les tentatives échouées pour continuer à pousser vers un nouvel essai
+  (prompts.py)
+- [x] Frontend : `types/agent.ts` — `error_message` sur `AgentStepResponse`
+- [x] Frontend : `agentExplorationStore.ts` — branche chart en échec : pas d'`addChart`,
+  historise l'échec, `trail` avec `chart: null` + `errorMessage`, la boucle continue
+- [x] Frontend : `AgentExplorationPanel.tsx` — rendu corrigé pour distinguer graphique réussi /
+  échoué / requête (l'ancien code aurait affiché "Échec de la requête" pour un graphique raté)
+- [x] Vérification : tests backend isolés (colonne inexistante et mesure non numérique → 200
+  avec `error_message`, plus 422 ; cas valide inchangé ; rendu de l'historique avec `ÉCHEC`)
+- [x] Vérification : test Playwright réseau simulé (query → chart invalide → finish) — la run
+  va au bout, le bon message d'erreur s'affiche, rien n'est ajouté au dashboard
+- [x] Vérification : `tsc -b && vite build` propre
+
+### Résumé des changements
+Avant : un graphique halluciné par l'agent (mauvais nom de colonne, mesure non numérique)
+renvoyait une 422 qui faisait planter toute la run côté frontend (`phase:"error"`, arrêt
+immédiat) — perte totale de 2-3 minutes de travail pour une seule erreur récupérable. Après :
+le backend renvoie toujours 200, avec `error_message` rempli en cas de problème ; le frontend
+réinjecte l'échec dans l'historique (même mécanisme que pour une requête SQL qui échoue à
+l'exécution) et continue la boucle — l'agent voit son erreur au tour suivant et peut se
+corriger, exactement comme pour les requêtes.
+
+### Revue
+**Ce qui a fonctionné :** le pattern existant pour les échecs de requête SQL (historiser plutôt
+qu'avorter) s'est transposé directement au graphique sans surprise — même philosophie, même
+mécanisme de rendu (`errorMessage` déjà présent dans `AgentTrailEntry`), juste une distinction
+de branchement à corriger dans le composant pour ne pas confondre les deux types d'échec.
+
+**Ce qui a été difficile :** rien de bloquant. Le seul point de vigilance identifié en amont
+(et traité dans le plan) : garder une distinction entre échec de *contenu* (mauvaise colonne —
+récupérable, 200) et échec de *format* (JSON qui casse le contrat Pydantic — non récupérable,
+502 conservé), pour ne pas transformer un vrai bug de format en boucle infinie silencieuse.
+
+**Preuve de fonctionnement :**
+- Tests backend isolés : colonne X inexistante et mesure Y non numérique renvoient maintenant
+  **200** avec `error_message` rempli (plus de 422) ; le cas valide reste inchangé (200, pas
+  d'`error_message`) ; une entrée d'historique en échec s'affiche avec `ÉCHEC` dans le message
+  envoyé au modèle.
+- Test Playwright (réseau simulé, séquence query → chart invalide → finish) : la run atteint
+  bien la conclusion (`phase` ne passe jamais à `"error"`), le fil affiche "Échec de l'ajout du
+  graphique : Colonne inconnue..." (pas "Échec de la requête", confusion évitée), et le
+  tableau de bord ne contient aucun graphique fantôme.
+- `npm run build` (tsc -b + vite build, 2m41s) et l'import de `app.main` passent sans erreur.
