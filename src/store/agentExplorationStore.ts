@@ -5,10 +5,11 @@ import type { AgentPhase, AgentStepRecord, AgentTrailEntry } from "@/types/agent
 import { runQuery } from "@/lib/duckdb/loadDataset";
 import { ApiError, agentStep } from "@/lib/agent/api";
 import { buildDatasetSchema } from "@/lib/textToSql/schemaBuilder";
+import { useDashboardStore } from "@/store/dashboardStore";
 
 /** Loop cap: each step is one Mistral call, and the free tier allows only
  * 2 requests/minute — 3 keeps the worst case (3 sequential calls) under a
- * minute while still leaving at least 2 real exploratory queries before the
+ * minute while still leaving at least 2 real exploratory actions before the
  * forced conclusion on the last step. */
 const MAX_AGENT_STEPS = 3;
 /** Sample rows sent back per step so the growing history stays small across steps. */
@@ -79,17 +80,64 @@ export const useAgentExplorationStore = create<AgentExplorationStore>((set, get)
         return;
       }
 
+      if (response.action === "chart") {
+        const reasoning = response.reasoning ?? "";
+        const title = response.chart_title ?? "Graphique";
+        const type = response.chart_type ?? "bar";
+        const xField = response.chart_x_field ?? "";
+        const yFields = response.chart_y_fields ?? [];
+        const aggregation = response.chart_aggregation ?? "sum";
+
+        useDashboardStore.getState().addChart({
+          title,
+          type,
+          xField,
+          yFields,
+          aggregation,
+          groupByField: null,
+        });
+
+        history.push({
+          action: "chart",
+          reasoning,
+          chart_title: title,
+          chart_type: type,
+          chart_x_field: xField,
+          chart_y_fields: yFields,
+          chart_aggregation: aggregation,
+        });
+        set((state) => ({
+          trail: [
+            ...state.trail,
+            {
+              stepNumber,
+              action: "chart",
+              reasoning,
+              sql: null,
+              result: null,
+              chart: { title, type, xField, yFields, aggregation },
+              errorMessage: null,
+            },
+          ],
+        }));
+        continue;
+      }
+
       const sql = response.sql ?? "";
       const reasoning = response.reasoning ?? "";
       set({
         phase: "executing",
-        trail: [...get().trail, { stepNumber, sql, reasoning, result: null, errorMessage: null }],
+        trail: [
+          ...get().trail,
+          { stepNumber, action: "query", sql, reasoning, result: null, chart: null, errorMessage: null },
+        ],
       });
 
       try {
         const result = await runQuery(sql);
         const sampleRows = result.rows.slice(0, SAMPLE_ROW_CAP);
         history.push({
+          action: "query",
           sql,
           reasoning,
           row_count: result.rows.length,
@@ -107,6 +155,7 @@ export const useAgentExplorationStore = create<AgentExplorationStore>((set, get)
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         history.push({
+          action: "query",
           sql,
           reasoning,
           row_count: 0,

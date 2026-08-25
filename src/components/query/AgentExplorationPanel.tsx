@@ -1,6 +1,7 @@
 import {
   Activity,
   AlertCircle,
+  BarChart3,
   Link2,
   Loader2,
   PieChart,
@@ -15,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SqlCodeBlock } from "@/components/query/SqlCodeBlock";
+import { ChartRenderer } from "@/components/dashboard/ChartRenderer";
 import { cn } from "@/lib/utils";
 
 const CATEGORY_ICON: Record<InsightCategory, typeof Sparkles> = {
@@ -76,10 +78,11 @@ export function AgentExplorationPanel({ dataset }: AgentExplorationPanelProps) {
                 className="space-y-2 rounded-lg border border-border bg-secondary/30 p-3"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <Badge variant="accent">
+                  <Badge variant="accent" className="gap-1">
+                    {entry.action === "chart" && <BarChart3 className="h-3 w-3" />}
                     Étape {entry.stepNumber}/{MAX_STEPS_LABEL}
                   </Badge>
-                  {!entry.result && !entry.errorMessage && (
+                  {entry.action === "query" && !entry.result && !entry.errorMessage && (
                     <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <Loader2 className="h-3 w-3 animate-spin" />
                       Exécution…
@@ -89,17 +92,43 @@ export function AgentExplorationPanel({ dataset }: AgentExplorationPanelProps) {
                 {entry.reasoning && (
                   <p className="text-sm italic text-muted-foreground">{entry.reasoning}</p>
                 )}
-                <SqlCodeBlock sql={entry.sql} />
-                {entry.errorMessage ? (
-                  <p className="text-xs text-destructive">
-                    → Échec de la requête : {entry.errorMessage}
-                  </p>
-                ) : (
-                  entry.result && (
+                {entry.action === "chart" && entry.chart ? (
+                  <div className="space-y-1.5">
+                    <div className="h-[236px] overflow-hidden rounded-lg border border-border bg-background/50 p-2">
+                      <ChartRenderer
+                        config={{
+                          id: `agent-preview-${entry.stepNumber}`,
+                          title: entry.chart.title,
+                          type: entry.chart.type,
+                          xField: entry.chart.xField,
+                          yFields: entry.chart.yFields,
+                          aggregation: entry.chart.aggregation,
+                          groupByField: null,
+                          createdAt: 0,
+                        }}
+                        dataset={dataset}
+                        compact
+                      />
+                    </div>
                     <p className="text-xs text-muted-foreground">
-                      → {entry.result.rowCount} ligne(s), {entry.result.columns.length} colonne(s)
+                      → Graphique « {entry.chart.title} » ajouté au tableau de bord
                     </p>
-                  )
+                  </div>
+                ) : (
+                  <>
+                    {entry.sql && <SqlCodeBlock sql={entry.sql} />}
+                    {entry.errorMessage ? (
+                      <p className="text-xs text-destructive">
+                        → Échec de la requête : {entry.errorMessage}
+                      </p>
+                    ) : (
+                      entry.result && (
+                        <p className="text-xs text-muted-foreground">
+                          → {entry.result.rowCount} ligne(s), {entry.result.columns.length} colonne(s)
+                        </p>
+                      )
+                    )}
+                  </>
                 )}
               </li>
             ))}

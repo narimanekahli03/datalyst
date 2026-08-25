@@ -207,14 +207,22 @@ def build_insights_user_message(request: InsightsRequest) -> str:
 
 # The autonomous exploration agent: unlike every other prompt above (one-shot,
 # stateless), this one is called repeatedly by the frontend loop with a growing
-# history of prior steps, and the model itself decides each turn whether to
-# keep querying or to stop — that decision is the one genuinely agentic part
-# of this app; everything else is a fixed pipeline the frontend orchestrates.
+# history of prior steps, and the model itself decides each turn which of three
+# heterogeneous actions to take (query, chart, finish) — that choice is the one
+# genuinely agentic part of this app; everything else is a fixed pipeline the
+# frontend orchestrates.
 _AGENT_JSON_CONTRACT = (
     'Réponds UNIQUEMENT avec un objet JSON valide, sans balise markdown, sans texte '
-    'avant ou après, selon EXACTEMENT une de ces deux formes :\n'
-    'Pour proposer une requête : {"action": "query", "sql": "<requête SQL>", '
-    '"reasoning": "<1 phrase en français expliquant ce que tu cherches à découvrir>"}\n'
+    'avant ou après, selon EXACTEMENT une de ces trois formes :\n'
+    'Pour proposer une requête :\n'
+    '{"action": "query", "sql": "SELECT COUNT(*) AS total FROM data;", '
+    '"reasoning": "Je vérifie le nombre total de lignes."}\n'
+    'Pour ajouter un graphique au tableau de bord :\n'
+    '{"action": "chart", "reasoning": "Je visualise la répartition des ventes par ville.", '
+    '"chart_title": "Ventes par ville", "chart_type": "bar", "chart_x_field": "Ville", '
+    '"chart_y_fields": ["Montant_achat"], "chart_aggregation": "sum"}\n'
+    '(chart_type parmi : line, bar, area, pie, scatter — chart_aggregation parmi : '
+    'sum, avg, count, min, max — une seule colonne dans chart_y_fields pour "pie" et "scatter")\n'
     'Pour terminer : {"action": "finish", "summary": "<résumé en 2 à 4 phrases>", '
     '"findings": [{"text": "<observation concrète, avec un chiffre réel>", '
     '"category": "qualite|distribution|correlation|categorie|general"}, ...]} '
@@ -222,19 +230,31 @@ _AGENT_JSON_CONTRACT = (
 )
 
 AGENT_STEP_SYSTEM_PROMPT = f"""Tu es un data analyst autonome. Ton objectif est d'explorer un \
-jeu de données par toi-même, une requête SQL à la fois, pour en dégager les observations les \
-plus utiles pour un utilisateur non technique, en français.
+jeu de données par toi-même pour en dégager les observations les plus utiles pour un \
+utilisateur non technique, en français.
 
-À chaque tour, tu choisis TOI-MÊME la prochaine requête SQL à exécuter en te basant sur ce que \
-tu as déjà appris (voir l'historique ci-dessous), OU tu décides que tu en sais assez et tu \
-conclus avec un résumé et des observations (findings).
+À chaque tour, tu choisis TOI-MÊME une des trois actions suivantes, en te basant sur ce que \
+tu as déjà appris (voir l'historique ci-dessous) : exécuter une requête SQL, ajouter un \
+graphique au tableau de bord de l'utilisateur, ou conclure avec un résumé et des observations.
 
 RÈGLES STRICTES POUR LES REQUÊTES SQL :
 {_READ_ONLY_RULES}
 
+RÈGLES POUR LES GRAPHIQUES :
+1. Utilise "action": "chart" quand une distribution, une comparaison entre catégories ou une \
+répartition serait plus parlante en visuel qu'en texte.
+2. "chart_x_field" doit être une colonne du schéma fourni ci-dessous (n'importe quel type). \
+"chart_y_fields" doit contenir une ou plusieurs colonnes dont le type indiqué dans le schéma \
+est "number" — jamais une colonne de type texte, date ou booléen.
+3. N'ajoute jamais plus d'un ou deux graphiques au total sur l'ensemble de tes étapes, et ne \
+répète jamais un graphique quasi identique à un graphique déjà ajouté (voir l'historique).
+4. Ajouter un graphique NE COMPTE PAS comme exécuter une requête : voir règle 1 de "RÈGLES \
+POUR CONCLURE" ci-dessous.
+
 RÈGLES POUR CONCLURE :
-1. Ne conclus ("action": "finish") que lorsque tu as exécuté au moins une requête, ou si le \
-budget d'étapes est épuisé (voir la consigne à la fin du message).
+1. Ne conclus ("action": "finish") que lorsque tu as exécuté au moins une VRAIE REQUÊTE SQL \
+("action": "query", pas seulement des graphiques), ou si le budget d'étapes est épuisé (voir \
+la consigne à la fin du message).
 2. Chaque "finding" doit être basé UNIQUEMENT sur les résultats des requêtes réellement \
 exécutées listées dans l'historique. N'invente JAMAIS un chiffre qui n'y figure pas.
 3. Fournis entre 3 et 5 findings, concis (une phrase chacun), classés dans une catégorie parmi \
@@ -248,16 +268,25 @@ FORMAT DE RÉPONSE :
 
 def _format_agent_history(history: list[AgentStepRecord]) -> str:
     if not history:
-        return "(aucune requête exécutée pour l'instant — c'est ta première étape)"
+        return "(aucune action effectuée pour l'instant — c'est ta première étape)"
     blocks = []
     for i, step in enumerate(history, start=1):
-        block = [f"Étape {i} :", f"SQL : {step.sql}", f"Raisonnement : {step.reasoning}"]
-        if step.error_message:
-            block.append(f"Résultat : ÉCHEC — {step.error_message}")
+        if step.action == "chart":
+            block = [
+                f"Étape {i} (graphique ajouté) :",
+                f"Titre : {step.chart_title}",
+                f"Type : {step.chart_type}, X : {step.chart_x_field}, "
+                f"Y : {step.chart_y_fields}, agrégation : {step.chart_aggregation}",
+                f"Raisonnement : {step.reasoning}",
+            ]
         else:
-            block.append(f"Résultat : {step.row_count} ligne(s), colonnes {step.columns}")
-            if step.sample_rows:
-                block.append(f"Extrait : {step.sample_rows}")
+            block = [f"Étape {i} (requête) :", f"SQL : {step.sql}", f"Raisonnement : {step.reasoning}"]
+            if step.error_message:
+                block.append(f"Résultat : ÉCHEC — {step.error_message}")
+            else:
+                block.append(f"Résultat : {step.row_count} ligne(s), colonnes {step.columns}")
+                if step.sample_rows:
+                    block.append(f"Extrait : {step.sample_rows}")
         blocks.append("\n".join(block))
     return "\n\n".join(blocks)
 

@@ -134,7 +134,7 @@ Base URL locale : `http://localhost:8000`. Toutes les routes sont en `POST`, sau
 | `POST /fix-sql` | SQL en échec + message d'erreur DuckDB → SQL corrigé |
 | `POST /summarize` | Question + résultat de requête → résumé en langage naturel (français) |
 | `POST /generate-insights` | Statistiques agrégées du dataset → 3 à 5 observations classées par catégorie |
-| `POST /agent-step` | Agent d'exploration autonome : à partir de l'historique de ses propres requêtes, propose la prochaine requête SQL à exécuter ou conclut avec un résumé + observations |
+| `POST /agent-step` | Agent d'exploration autonome : à partir de son propre historique, choisit d'exécuter une requête SQL, d'ajouter un graphique au tableau de bord, ou de conclure avec un résumé + observations |
 
 Le contrat exact des requêtes/réponses est défini dans `backend/app/schemas.py` (Pydantic) et
 `src/types/textToSql.ts` / `src/types/insights.ts` (TypeScript) — les deux doivent rester

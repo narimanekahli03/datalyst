@@ -23,6 +23,7 @@ from app.prompts import (
 from app.schemas import (
     AgentStepRequest,
     AgentStepResponse,
+    DatasetSchema,
     FixSqlRequest,
     FixSqlResponse,
     GenerateSqlRequest,
@@ -136,6 +137,37 @@ def _validate_agent_sql(sql: str | None, table_name: str) -> str:
     return sql
 
 
+def _validate_chart_fields(
+    x_field: str | None, y_fields: list[str] | None, schema: DatasetSchema
+) -> tuple[str, list[str]]:
+    """Used only by /agent-step's 'chart' action. Checks the agent's chosen
+    columns actually exist in the schema, and that every Y (measure) column is
+    numeric — chartData.ts renders a bar/line/area chart with visible axes but
+    no bars/lines for a non-numeric measure, which looks broken with no
+    explanation, so this is worth catching before it reaches the dashboard."""
+    if not x_field or not y_fields:
+        raise HTTPException(
+            status_code=422, detail="L'agent n'a pas proposé de colonnes valides pour le graphique."
+        )
+    columns_by_name = {c.name: c for c in schema.columns}
+    if x_field not in columns_by_name:
+        raise HTTPException(
+            status_code=422, detail=f"Colonne inconnue proposée par l'agent pour l'axe X : {x_field}"
+        )
+    for y_field in y_fields:
+        column = columns_by_name.get(y_field)
+        if column is None:
+            raise HTTPException(
+                status_code=422, detail=f"Colonne inconnue proposée par l'agent pour la mesure : {y_field}"
+            )
+        if column.type != "number":
+            raise HTTPException(
+                status_code=422,
+                detail=f"La colonne \"{y_field}\" n'est pas numérique, elle ne peut pas être une mesure.",
+            )
+    return x_field, y_fields
+
+
 @app.post("/agent-step", response_model=AgentStepResponse)
 def agent_step(request: AgentStepRequest) -> AgentStepResponse:
     user_message = build_agent_step_user_message(request)
@@ -145,6 +177,26 @@ def agent_step(request: AgentStepRequest) -> AgentStepResponse:
     if action == "query":
         sql = _validate_agent_sql(data.get("sql"), request.schema_.table_name)
         return AgentStepResponse(action="query", sql=sql, reasoning=data.get("reasoning") or "")
+
+    if action == "chart":
+        x_field, y_fields = _validate_chart_fields(
+            data.get("chart_x_field"), data.get("chart_y_fields"), request.schema_
+        )
+        try:
+            return AgentStepResponse(
+                action="chart",
+                reasoning=data.get("reasoning") or "",
+                chart_title=data.get("chart_title") or "Graphique",
+                chart_type=data.get("chart_type"),
+                chart_x_field=x_field,
+                chart_y_fields=y_fields,
+                chart_aggregation=data.get("chart_aggregation") or "sum",
+            )
+        except ValidationError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail="L'agent a renvoyé une configuration de graphique dans un format inattendu.",
+            ) from exc
 
     if action == "finish":
         try:

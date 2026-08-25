@@ -1,16 +1,25 @@
 import type { CellValue } from "@/types/dataset";
 import type { DatasetSchemaPayload } from "@/types/textToSql";
 import type { Insight } from "@/types/insights";
+import type { AggregationType, ChartType } from "@/types/dashboard";
 
 /** One step the agent has already taken — sent back on every subsequent
  * request so the model can see what it already tried and learned. */
 export interface AgentStepRecord {
-  sql: string;
+  action: "query" | "chart";
   reasoning: string;
-  row_count: number;
-  columns: string[];
-  sample_rows: Record<string, CellValue>[];
-  error_message: string | null;
+  // query fields
+  sql?: string | null;
+  row_count?: number | null;
+  columns?: string[] | null;
+  sample_rows?: Record<string, CellValue>[] | null;
+  error_message?: string | null;
+  // chart fields
+  chart_title?: string | null;
+  chart_type?: ChartType | null;
+  chart_x_field?: string | null;
+  chart_y_fields?: string[] | null;
+  chart_aggregation?: AggregationType | null;
 }
 
 export interface AgentStepRequest {
@@ -22,9 +31,14 @@ export interface AgentStepRequest {
 }
 
 export interface AgentStepResponse {
-  action: "query" | "finish";
+  action: "query" | "chart" | "finish";
   sql?: string;
   reasoning?: string;
+  chart_title?: string;
+  chart_type?: ChartType;
+  chart_x_field?: string;
+  chart_y_fields?: string[];
+  chart_aggregation?: AggregationType;
   summary?: string;
   findings?: Insight[];
 }
@@ -32,9 +46,17 @@ export interface AgentStepResponse {
 /** One entry in the live trail rendered in the UI — the step plus its outcome. */
 export interface AgentTrailEntry {
   stepNumber: number;
-  sql: string;
+  action: "query" | "chart";
   reasoning: string;
-  result: { rowCount: number; columns: string[] } | null; // null while the step is in flight
+  sql: string | null;
+  result: { rowCount: number; columns: string[] } | null; // null while a query step is in flight
+  chart: {
+    title: string;
+    type: ChartType;
+    xField: string;
+    yFields: string[];
+    aggregation: AggregationType;
+  } | null;
   errorMessage: string | null;
 }
 

@@ -112,13 +112,27 @@ class InsightsResponse(BaseModel):
     insights: list[Insight]
 
 
+# Kept in sync with src/types/dashboard.ts's ChartType/AggregationType — the
+# agent's "chart" action reuses the exact same dashboard chart config shape.
+ChartType = Literal["line", "bar", "area", "pie", "scatter"]
+ChartAggregation = Literal["sum", "avg", "count", "min", "max"]
+
+
 class AgentStepRecord(BaseModel):
-    sql: str
+    action: Literal["query", "chart"] = "query"
     reasoning: str
-    row_count: int
-    columns: list[str]
-    sample_rows: list[dict[str, CellValue]]
+    # query fields
+    sql: str | None = None
+    row_count: int | None = None
+    columns: list[str] | None = None
+    sample_rows: list[dict[str, CellValue]] | None = None
     error_message: str | None = None
+    # chart fields
+    chart_title: str | None = None
+    chart_type: ChartType | None = None
+    chart_x_field: str | None = None
+    chart_y_fields: list[str] | None = None
+    chart_aggregation: ChartAggregation | None = None
 
 
 class AgentStepRequest(BaseModel):
@@ -132,8 +146,13 @@ class AgentStepRequest(BaseModel):
 
 
 class AgentStepResponse(BaseModel):
-    action: Literal["query", "finish"]
+    action: Literal["query", "chart", "finish"]
     sql: str | None = None
     reasoning: str | None = None
+    chart_title: str | None = None
+    chart_type: ChartType | None = None
+    chart_x_field: str | None = None
+    chart_y_fields: list[str] | None = None
+    chart_aggregation: ChartAggregation | None = None
     summary: str | None = None
     findings: list[Insight] = Field(default_factory=list)
