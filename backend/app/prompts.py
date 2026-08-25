@@ -241,8 +241,12 @@ RÈGLES STRICTES POUR LES REQUÊTES SQL :
 {_READ_ONLY_RULES}
 
 RÈGLES POUR LES GRAPHIQUES :
-1. Utilise "action": "chart" quand une distribution, une comparaison entre catégories ou une \
-répartition serait plus parlante en visuel qu'en texte.
+1. Dès que le schéma fourni ci-dessous contient à la fois une colonne catégorielle (type \
+"string" avec plusieurs valeurs distinctes) et une colonne numérique (type "number"), \
+PRÉFÈRE illustrer ça avec "action": "chart" plutôt que de te limiter à des requêtes SQL : un \
+graphique ajouté au tableau de bord de l'utilisateur a plus de valeur pour lui qu'une simple \
+requête de comptage. N'attends pas d'avoir tout exploré en SQL avant d'y penser — tu peux \
+choisir "chart" dès la première étape si le schéma s'y prête déjà.
 2. "chart_x_field" doit être une colonne du schéma fourni ci-dessous (n'importe quel type). \
 "chart_y_fields" doit contenir une ou plusieurs colonnes dont le type indiqué dans le schéma \
 est "number" — jamais une colonne de type texte, date ou booléen.
@@ -297,8 +301,21 @@ def build_agent_step_user_message(request: AgentStepRequest) -> str:
         if request.must_finish
         else f"Étape {request.step_number} sur {request.max_steps} maximum."
     )
+    # A concrete, state-aware nudge beats a generic rule: LLMs follow "you
+    # haven't done X yet" reminders far more reliably than a standing
+    # instruction buried in the system prompt (empirically 0/5 chart
+    # choices on a fresh history before this was added).
+    has_chart = any(step.action == "chart" for step in request.history)
+    chart_reminder = (
+        "\n\nRappel : tu n'as encore ajouté aucun graphique. Si une colonne catégorielle et une "
+        "colonne numérique du schéma s'y prêtent, c'est le moment d'utiliser \"action\": \"chart\" "
+        "plutôt qu'une nouvelle requête."
+        if not has_chart and not request.must_finish and request.step_number >= 2
+        else ""
+    )
     return (
         f"{_format_schema(request.schema_)}\n\n"
         f"Historique des requêtes déjà exécutées :\n{_format_agent_history(request.history)}\n\n"
         f"{budget_note}"
+        f"{chart_reminder}"
     )
