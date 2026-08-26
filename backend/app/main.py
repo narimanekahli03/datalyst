@@ -47,7 +47,7 @@ app.add_middleware(
 )
 
 
-def _extract_sql_response(data: dict, table_name: str) -> GenerateSqlResponse:
+def _extract_sql_response(data: dict, allowed_tables: set[str]) -> GenerateSqlResponse:
     """Shared by /generate-sql and /fix-sql: both expect the same
     {"sql", "explanation"} shape and go through the same safety check."""
     explanation = data.get("explanation") or ""
@@ -60,7 +60,7 @@ def _extract_sql_response(data: dict, table_name: str) -> GenerateSqlResponse:
         )
 
     try:
-        validate_read_only_sql(sql, table_name)
+        validate_read_only_sql(sql, allowed_tables)
     except SqlSafetyError as exc:
         raise HTTPException(
             status_code=422, detail=f"La requête générée n'est pas autorisée : {exc}"
@@ -76,18 +76,20 @@ def health() -> dict[str, str]:
 
 @app.post("/generate-sql", response_model=GenerateSqlResponse)
 def generate_sql(request: GenerateSqlRequest) -> GenerateSqlResponse:
-    user_message = build_generate_sql_user_message(request.question, request.schema_)
+    schemas = [request.schema_] + request.secondary_tables
+    user_message = build_generate_sql_user_message(request.question, schemas)
     data = call_mistral_json(GENERATE_SQL_SYSTEM_PROMPT, user_message)
-    return _extract_sql_response(data, request.schema_.table_name)
+    return _extract_sql_response(data, {s.table_name for s in schemas})
 
 
 @app.post("/fix-sql", response_model=FixSqlResponse)
 def fix_sql(request: FixSqlRequest) -> FixSqlResponse:
+    schemas = [request.schema_] + request.secondary_tables
     user_message = build_fix_sql_user_message(
-        request.question, request.sql, request.error_message, request.schema_
+        request.question, request.sql, request.error_message, schemas
     )
     data = call_mistral_json(FIX_SQL_SYSTEM_PROMPT, user_message)
-    return _extract_sql_response(data, request.schema_.table_name)
+    return _extract_sql_response(data, {s.table_name for s in schemas})
 
 
 @app.post("/summarize", response_model=SummarizeResponse)
@@ -122,14 +124,14 @@ def generate_insights(request: InsightsRequest) -> InsightsResponse:
     return response
 
 
-def _validate_agent_sql(sql: str | None, table_name: str) -> str:
+def _validate_agent_sql(sql: str | None, allowed_tables: set[str]) -> str:
     """Used only by /agent-step's 'query' action — validates the proposed SQL
     the same way _extract_sql_response does, but returns just the string
     since the agent response shape isn't {"sql", "explanation"}."""
     if not sql:
         raise HTTPException(status_code=422, detail="L'agent n'a pas proposé de requête SQL.")
     try:
-        validate_read_only_sql(sql, table_name)
+        validate_read_only_sql(sql, allowed_tables)
     except SqlSafetyError as exc:
         raise HTTPException(
             status_code=422, detail=f"La requête proposée par l'agent n'est pas autorisée : {exc}"
@@ -173,7 +175,8 @@ def agent_step(request: AgentStepRequest) -> AgentStepResponse:
 
     action = data.get("action")
     if action == "query":
-        sql = _validate_agent_sql(data.get("sql"), request.schema_.table_name)
+        allowed_tables = {request.schema_.table_name} | {t.table_name for t in request.secondary_tables}
+        sql = _validate_agent_sql(data.get("sql"), allowed_tables)
         return AgentStepResponse(action="query", sql=sql, reasoning=data.get("reasoning") or "")
 
     if action == "chart":

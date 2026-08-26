@@ -24,6 +24,7 @@ export interface AgentStepRecord {
 
 export interface AgentStepRequest {
   schema: DatasetSchemaPayload;
+  secondary_tables?: DatasetSchemaPayload[];
   history: AgentStepRecord[];
   step_number: number;
   max_steps: number;

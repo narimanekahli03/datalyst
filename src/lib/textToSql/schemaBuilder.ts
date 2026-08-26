@@ -16,10 +16,15 @@ function collectSampleValues(dataset: Dataset, columnName: string): string[] {
   return [...seen];
 }
 
-/** Builds the schema payload (columns, types, example values) sent to /generate-sql and /fix-sql. */
-export function buildDatasetSchema(dataset: Dataset): DatasetSchemaPayload {
+/** Builds the schema payload (columns, types, example values) sent to /generate-sql and /fix-sql.
+ * `tableName` defaults to the primary table; pass the secondary table's own
+ * name to build its payload the same way. */
+export function buildDatasetSchema(
+  dataset: Dataset,
+  tableName: string = QUERY_TABLE_NAME
+): DatasetSchemaPayload {
   return {
-    table_name: QUERY_TABLE_NAME,
+    table_name: tableName,
     columns: dataset.columns.map((col) => ({
       name: col.name,
       type: col.type,

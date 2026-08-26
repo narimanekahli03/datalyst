@@ -2,11 +2,8 @@ import type { CellValue, ColumnType, Dataset } from "@/types/dataset";
 import type { QueryResult } from "@/types/textToSql";
 import { getDuckDbConnection, getDuckDbEngine } from "@/lib/duckdb/duckdbClient";
 
-/** Name of the SQL table the loaded dataset is exposed as — part of the schema sent to the backend. */
+/** Name of the SQL table the primary dataset is exposed as — part of the schema sent to the backend. */
 export const QUERY_TABLE_NAME = "data";
-
-const STAGING_TABLE_NAME = "__data_staging";
-const STAGING_FILE_NAME = "dataset_rows.json";
 
 const DUCKDB_TYPE_BY_COLUMN_TYPE: Record<ColumnType, string> = {
   string: "VARCHAR",
@@ -20,7 +17,10 @@ function quoteIdentifier(name: string): string {
 }
 
 /**
- * Loads the current Zustand dataset into DuckDB-WASM as the `data` table.
+ * Loads a dataset into DuckDB-WASM as a table named `tableName` (defaults to
+ * the primary `"data"` table for every existing call site). Staging
+ * table/file names are namespaced per table so loading a second table (e.g.
+ * a joined file on the query page) can never collide with the primary load.
  *
  * Rows are inserted via DuckDB's own JSON reader (fast, no per-row loop) into
  * a staging table, then copied into the final table through an explicit
@@ -28,9 +28,15 @@ function quoteIdentifier(name: string): string {
  * regardless of what DuckDB's JSON type inference guessed. TRY_CAST (not
  * CAST) so a single malformed cell nulls out instead of failing the whole load.
  */
-export async function loadDatasetIntoDuckDB(dataset: Dataset): Promise<void> {
+export async function loadDatasetIntoDuckDB(
+  dataset: Dataset,
+  tableName: string = QUERY_TABLE_NAME
+): Promise<void> {
   const db = await getDuckDbEngine();
   const conn = await getDuckDbConnection();
+
+  const stagingTableName = `__${tableName}_staging`;
+  const stagingFileName = `${tableName}_rows.json`;
 
   const jsonRows = dataset.rows.map((row) => {
     const record: Record<string, CellValue> = {};
@@ -38,10 +44,10 @@ export async function loadDatasetIntoDuckDB(dataset: Dataset): Promise<void> {
     return record;
   });
 
-  await db.registerFileText(STAGING_FILE_NAME, JSON.stringify(jsonRows));
-  await conn.query(`DROP TABLE IF EXISTS ${quoteIdentifier(QUERY_TABLE_NAME)}`);
-  await conn.query(`DROP TABLE IF EXISTS ${quoteIdentifier(STAGING_TABLE_NAME)}`);
-  await conn.insertJSONFromPath(STAGING_FILE_NAME, { name: STAGING_TABLE_NAME });
+  await db.registerFileText(stagingFileName, JSON.stringify(jsonRows));
+  await conn.query(`DROP TABLE IF EXISTS ${quoteIdentifier(tableName)}`);
+  await conn.query(`DROP TABLE IF EXISTS ${quoteIdentifier(stagingTableName)}`);
+  await conn.insertJSONFromPath(stagingFileName, { name: stagingTableName });
 
   const selectColumns = dataset.columns
     .map((col) => {
@@ -52,10 +58,10 @@ export async function loadDatasetIntoDuckDB(dataset: Dataset): Promise<void> {
     .join(", ");
 
   await conn.query(
-    `CREATE TABLE ${quoteIdentifier(QUERY_TABLE_NAME)} AS SELECT ${selectColumns || "*"} FROM ${quoteIdentifier(STAGING_TABLE_NAME)}`
+    `CREATE TABLE ${quoteIdentifier(tableName)} AS SELECT ${selectColumns || "*"} FROM ${quoteIdentifier(stagingTableName)}`
   );
-  await conn.query(`DROP TABLE ${quoteIdentifier(STAGING_TABLE_NAME)}`);
-  await db.dropFile(STAGING_FILE_NAME);
+  await conn.query(`DROP TABLE ${quoteIdentifier(stagingTableName)}`);
+  await db.dropFile(stagingFileName);
 }
 
 /** Thrown when a query still fails after every auto-correction attempt was exhausted. */

@@ -15,6 +15,8 @@ export interface DatasetSchemaPayload {
 export interface GenerateSqlRequest {
   question: string;
   schema: DatasetSchemaPayload;
+  /** A second table joined on the query page, if any — lets the AI write JOINs. */
+  secondary_tables?: DatasetSchemaPayload[];
 }
 
 export interface GenerateSqlResponse {
@@ -27,6 +29,7 @@ export interface FixSqlRequest {
   sql: string;
   error_message: string;
   schema: DatasetSchemaPayload;
+  secondary_tables?: DatasetSchemaPayload[];
 }
 
 /** Same shape as a fresh generation: a corrected query plus its explanation. */

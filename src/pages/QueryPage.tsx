@@ -15,6 +15,7 @@ import { QueryResultTable } from "@/components/query/QueryResultTable";
 import { QueryResultChart } from "@/components/query/QueryResultChart";
 import { QueryHistoryPanel } from "@/components/query/QueryHistoryPanel";
 import { AgentExplorationPanel } from "@/components/query/AgentExplorationPanel";
+import { SecondaryTableWidget } from "@/components/query/SecondaryTableWidget";
 import { cn } from "@/lib/utils";
 
 function DuckDbLoadingState() {
@@ -124,6 +125,8 @@ export function QueryPage() {
                 Agent IA autonome
               </Button>
             </div>
+
+            <SecondaryTableWidget />
 
             {mode === "agent" && <AgentExplorationPanel dataset={dataset} />}
 

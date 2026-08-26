@@ -24,6 +24,9 @@ class DatasetSchema(BaseModel):
 class GenerateSqlRequest(BaseModel):
     question: str
     schema_: DatasetSchema = Field(alias="schema")
+    # Optional second (third, ...) table joined on the query page — lets the
+    # model write JOINs across datasets instead of being limited to one table.
+    secondary_tables: list[DatasetSchema] = Field(default_factory=list)
 
     model_config = {"populate_by_name": True}
 
@@ -38,6 +41,7 @@ class FixSqlRequest(BaseModel):
     sql: str
     error_message: str
     schema_: DatasetSchema = Field(alias="schema")
+    secondary_tables: list[DatasetSchema] = Field(default_factory=list)
 
     model_config = {"populate_by_name": True}
 
@@ -137,6 +141,7 @@ class AgentStepRecord(BaseModel):
 
 class AgentStepRequest(BaseModel):
     schema_: DatasetSchema = Field(alias="schema")
+    secondary_tables: list[DatasetSchema] = Field(default_factory=list)
     history: list[AgentStepRecord] = Field(default_factory=list)
     step_number: int
     max_steps: int

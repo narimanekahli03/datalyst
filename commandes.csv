@@ -1,0 +1,6 @@
+commande_id,client_id,produit,montant_commande
+101,1,Clavier,49.90
+102,1,Souris,19.90
+103,2,Écran,199.00
+104,3,Casque,79.50
+105,3,Webcam,59.00

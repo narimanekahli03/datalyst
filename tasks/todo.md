@@ -149,3 +149,66 @@ récupérable, 200) et échec de *format* (JSON qui casse le contrat Pydantic �
   graphique : Colonne inconnue..." (pas "Échec de la requête", confusion évitée), et le
   tableau de bord ne contient aucun graphique fantôme.
 - `npm run build` (tsc -b + vite build, 2m41s) et l'import de `app.main` passent sans erreur.
+
+---
+
+## Deuxième table + jointures (scopé à la page "Interroger")
+
+Plan complet : [docs/plans/deuxieme-table-jointures.md](../docs/plans/deuxieme-table-jointures.md)
+
+### Plan
+- [x] Backend : `validate_read_only_sql` accepte un ensemble de tables autorisées au lieu
+  d'une seule (sql_safety.py) — aucun changement structurel nécessaire, juste le paramètre
+- [x] Backend : `secondary_tables` ajouté à `GenerateSqlRequest`/`FixSqlRequest`/
+  `AgentStepRequest` (schemas.py)
+- [x] Backend : `_format_schemas` (rendu multi-tables + mention JOIN si ≥ 2), les 3 builders de
+  message prennent la liste complète des schémas (prompts.py)
+- [x] Backend : les 3 routes calculent `allowed_tables` = table principale + secondaires
+  (main.py) — `_validate_chart_fields` volontairement NON touché (le graphique de l'agent
+  reste sur le dataset principal en mémoire, pas sur DuckDB)
+- [x] Frontend : `loadDatasetIntoDuckDB(dataset, tableName?)` paramétré, staging namespacé par
+  table (loadDataset.ts) ; `buildDatasetSchema(dataset, tableName?)` idem (schemaBuilder.ts)
+- [x] Frontend : `sanitizeTableName(fileName, reserved)` — nouveau (tableName.ts)
+- [x] Frontend : `secondaryTableStore.ts` — nouveau store indépendant, pas branché sur le reset
+  du dataset principal (décision volontaire)
+- [x] Frontend : `textToSqlStore.ts` et `agentExplorationStore.ts` incluent `secondary_tables`
+  dans leurs appels quand une table est chargée
+- [x] Frontend : `SecondaryTableWidget.tsx` — nouveau, chip compact sur la page Interroger
+  (visible dans les deux modes)
+- [x] Vérification : tests backend isolés (JOIN accepté, table inconnue rejetée avec les deux
+  noms listés, régression sans table secondaire)
+- [x] Vérification : `tsc -b && vite build` propre
+- [x] Vérification : test Playwright bout en bout avec deux vrais fichiers CSV, question
+  nécessitant une jointure, dev servers réels
+
+### Résumé des changements
+Sur la page "Interroger" uniquement (nettoyage/dashboard/insights inchangés), on peut
+maintenant joindre un second fichier CSV/Excel comme deuxième table DuckDB. Le text-to-SQL et
+l'agent voient les deux schémas et peuvent écrire des requêtes avec JOIN. Le nom de table de la
+seconde table est dérivé automatiquement du nom de fichier (`sanitizeTableName`).
+
+### Revue
+**Ce qui a fonctionné :** la recherche préalable (deux agents d'exploration en parallèle,
+frontend + backend) a payé — `sql_safety.py` n'avait aucun couplage caché à une seule table,
+donc la généralisation a été mécanique (3 lignes touchées) plutôt qu'une réécriture. Le pattern
+"paramètre optionnel avec valeur par défaut = comportement actuel" (déjà utilisé pour l'agent)
+a encore permis un changement 100% additif sur tous les call sites existants.
+
+**Ce qui a été difficile :** repérer que l'action `chart` de l'agent ne devait PAS être étendue
+aux colonnes de la table secondaire — `chartData.ts`/`ChartRenderer` lisent le `Dataset` déjà
+en mémoire (Zustand), pas DuckDB, donc charter une colonne qui n'existe que dans la table
+secondaire aurait validé côté backend mais produit un graphique vide côté front, un bug
+silencieux difficile à diagnostiquer. Repéré à l'analyse, pas en le découvrant en testant.
+
+**Preuve de fonctionnement (bout en bout, deux vrais fichiers, dev servers réels) :**
+- Chargé `exemple-donnees-sales.csv` (table `data`) puis joint `commandes.csv` (table
+  `commandes` auto-nommée) via le nouveau chip — "Table jointe : commandes (commandes.csv ·
+  5 lignes · 4 colonnes)".
+- Question "Quel est le montant total des commandes par client (Nom) ?" a généré :
+  `WITH montants_par_client AS (SELECT d."Nom", SUM(c."montant_commande") ... FROM "data" d
+  JOIN "commandes" c ON d."ID" = c."client_id" GROUP BY d."Nom") ...` — jointure correcte sur
+  la bonne clé, exécutée sans erreur DuckDB, résultat affiché en tableau + graphique.
+- Le payload réseau confirmé (`secondary_tables` bien présent avec le schéma complet de
+  `commandes`), 0 erreur console.
+- Sans table secondaire chargée : comportement inchangé (vérifié dans les tests backend
+  isolés — pas de régression sur le flux à une seule table).

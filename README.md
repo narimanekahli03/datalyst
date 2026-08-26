@@ -14,7 +14,7 @@ visualisez-le, interrogez-le en langage naturel grâce à l'IA, et générez un 
 | **Nettoyage** | Import CSV/Excel, aperçu paginé avec types détectés automatiquement, opérations de nettoyage en un clic (doublons, valeurs manquantes, espaces, conversion de type), historique avec annulation. Affiche aussi un panneau **Insights IA** : 3 à 5 observations générées automatiquement à l'ouverture du fichier. |
 | **Exploration** | Statistiques automatiques par colonne (moyenne, médiane, quartiles, valeurs aberrantes, top valeurs), matrice de corrélation, détection d'outliers. |
 | **Tableau de bord** | Constructeur de graphiques (barres, lignes, aires, secteurs, nuage de points) et d'indicateurs clés, export PNG. |
-| **Interroger** | Text-to-SQL : posez une question en français, l'IA génère du SQL, l'exécute dans le navigateur via DuckDB-WASM, corrige automatiquement les erreurs d'exécution, et répond en langage naturel. Historique des questions rejouable. |
+| **Interroger** | Text-to-SQL : posez une question en français, l'IA génère du SQL, l'exécute dans le navigateur via DuckDB-WASM, corrige automatiquement les erreurs d'exécution, et répond en langage naturel. Historique des questions rejouable. Un second fichier peut être joint sur cette page pour poser des questions nécessitant une jointure (JOIN) entre deux tables. |
 | **Rapport** | Assemble un rapport à partir de blocs (texte, graphique, indicateurs, tableau, insights IA, question IA) et l'exporte en PDF. |
 
 Toutes les données restent dans le navigateur (DuckDB-WASM, calculs client-side) — seules la

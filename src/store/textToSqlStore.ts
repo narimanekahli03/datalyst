@@ -5,6 +5,7 @@ import type { DuckDbStatus, QueryPhase, QueryResult, TextToSqlHistoryEntry } fro
 import { ExecutionFailedError, loadDatasetIntoDuckDB, runQuery } from "@/lib/duckdb/loadDataset";
 import { ApiError, fixSql, generateSql, summarize } from "@/lib/textToSql/api";
 import { buildDatasetSchema } from "@/lib/textToSql/schemaBuilder";
+import { useSecondaryTableStore } from "@/store/secondaryTableStore";
 
 /** Auto-correction loop cap: 1 initial execution + up to 2 fix attempts. */
 const MAX_FIX_ATTEMPTS = 2;
@@ -88,8 +89,13 @@ export const useTextToSqlStore = create<TextToSqlStore>((set, get) => ({
 
     try {
       const schema = buildDatasetSchema(dataset);
+      const secondary = useSecondaryTableStore.getState();
+      const secondary_tables =
+        secondary.status === "ready" && secondary.dataset && secondary.tableName
+          ? [buildDatasetSchema(secondary.dataset, secondary.tableName)]
+          : undefined;
 
-      const generated = await generateSql({ question: trimmed, schema });
+      const generated = await generateSql({ question: trimmed, schema, secondary_tables });
       let sql = generated.sql;
       let explanation = generated.explanation;
       set({ currentSql: sql, currentExplanation: explanation, phase: "executing" });
@@ -111,6 +117,7 @@ export const useTextToSqlStore = create<TextToSqlStore>((set, get) => ({
             sql,
             error_message: lastErrorMessage,
             schema,
+            secondary_tables,
           });
           sql = fixed.sql;
           explanation = fixed.explanation;

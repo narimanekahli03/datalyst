@@ -26,9 +26,11 @@ class SqlSafetyError(Exception):
     """Raised when generated SQL fails the read-only safety check."""
 
 
-def validate_read_only_sql(sql: str, allowed_table: str) -> None:
+def validate_read_only_sql(sql: str, allowed_tables: set[str]) -> None:
     """Raises SqlSafetyError unless `sql` is a single, read-only SELECT
-    statement that only references `allowed_table` (or CTEs it defines)."""
+    statement that only references tables in `allowed_tables` (or CTEs it
+    defines) — one table when there's no secondary table loaded, more when
+    the user has joined a second file on the query page."""
     text = sql.strip()
     if not text:
         raise SqlSafetyError("La requête générée est vide.")
@@ -54,7 +56,7 @@ def validate_read_only_sql(sql: str, allowed_table: str) -> None:
     # CTEs (WITH x AS (...)) define names that are legitimately referenced
     # later in the query without being the dataset's own table.
     cte_names = {cte.alias_or_name.lower() for cte in root.find_all(exp.CTE)}
-    allowed = {allowed_table.lower()} | cte_names
+    allowed = {t.lower() for t in allowed_tables} | cte_names
 
     for table in root.find_all(exp.Table):
         name = table.name.lower()
@@ -63,6 +65,7 @@ def validate_read_only_sql(sql: str, allowed_table: str) -> None:
                 f"Fonction non autorisée : {name} (accès fichier/réseau interdit)."
             )
         if name not in allowed:
+            allowed_list = ", ".join(f'"{t}"' for t in sorted(allowed_tables))
             raise SqlSafetyError(
-                f'Table inconnue référencée : "{name}". Seule la table "{allowed_table}" est autorisée.'
+                f'Table inconnue référencée : "{name}". Tables autorisées : {allowed_list}.'
             )

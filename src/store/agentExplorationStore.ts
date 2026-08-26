@@ -6,6 +6,7 @@ import { runQuery } from "@/lib/duckdb/loadDataset";
 import { ApiError, agentStep } from "@/lib/agent/api";
 import { buildDatasetSchema } from "@/lib/textToSql/schemaBuilder";
 import { useDashboardStore } from "@/store/dashboardStore";
+import { useSecondaryTableStore } from "@/store/secondaryTableStore";
 
 /** Loop cap: each step is one Mistral call, and the free tier allows only
  * 2 requests/minute — 3 keeps the worst case (3 sequential calls) under a
@@ -51,6 +52,11 @@ export const useAgentExplorationStore = create<AgentExplorationStore>((set, get)
     set({ ...INITIAL_STATE, phase: "thinking" });
 
     const schema = buildDatasetSchema(dataset);
+    const secondary = useSecondaryTableStore.getState();
+    const secondary_tables =
+      secondary.status === "ready" && secondary.dataset && secondary.tableName
+        ? [buildDatasetSchema(secondary.dataset, secondary.tableName)]
+        : undefined;
     const history: AgentStepRecord[] = [];
 
     for (let stepNumber = 1; stepNumber <= MAX_AGENT_STEPS; stepNumber += 1) {
@@ -61,6 +67,7 @@ export const useAgentExplorationStore = create<AgentExplorationStore>((set, get)
       try {
         response = await agentStep({
           schema,
+          secondary_tables,
           history,
           step_number: stepNumber,
           max_steps: MAX_AGENT_STEPS,

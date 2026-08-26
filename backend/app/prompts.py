@@ -36,8 +36,9 @@ _READ_ONLY_RULES = (
     "autorisé). Il est strictement interdit de générer INSERT, UPDATE, DELETE, DROP, "
     "CREATE, ALTER, TRUNCATE, ATTACH, COPY, PRAGMA, ou toute autre instruction qui "
     "modifierait des données, un schéma, ou l'état du moteur.\n"
-    "2. Tu utilises UNIQUEMENT la table et les colonnes listées dans le schéma fourni. "
-    "N'invente jamais de colonne ou de table.\n"
+    "2. Tu utilises UNIQUEMENT les tables et colonnes listées dans le(s) schéma(s) fourni(s). "
+    "N'invente jamais de colonne ou de table. Si plusieurs tables sont fournies, tu peux les "
+    "combiner avec JOIN quand c'est pertinent pour répondre à la question.\n"
     '3. Les noms de colonnes contenant des espaces, accents ou caractères spéciaux '
     'DOIVENT être entourés de guillemets doubles, par exemple "Montant achat".\n'
     "4. Utilise la syntaxe DuckDB (proche de PostgreSQL) : DATE_TRUNC, STRFTIME, EPOCH, "
@@ -96,15 +97,29 @@ def _format_schema(schema: DatasetSchema) -> str:
     return "\n".join(lines)
 
 
-def build_generate_sql_user_message(question: str, schema: DatasetSchema) -> str:
-    return f"{_format_schema(schema)}\n\nQuestion de l'utilisateur : {question}"
+def _format_schemas(schemas: list[DatasetSchema]) -> str:
+    """Renders one or more tables. A second (or third, ...) entry only ever
+    appears when the user has joined an extra file on the query page — the
+    single-table case renders identically to before."""
+    blocks = [_format_schema(schema) for schema in schemas]
+    text = "\n\n".join(blocks)
+    if len(schemas) > 1:
+        text += (
+            "\n\nPlusieurs tables sont disponibles : tu peux les combiner avec JOIN si "
+            "c'est pertinent pour répondre à la question."
+        )
+    return text
+
+
+def build_generate_sql_user_message(question: str, schemas: list[DatasetSchema]) -> str:
+    return f"{_format_schemas(schemas)}\n\nQuestion de l'utilisateur : {question}"
 
 
 def build_fix_sql_user_message(
-    question: str, sql: str, error_message: str, schema: DatasetSchema
+    question: str, sql: str, error_message: str, schemas: list[DatasetSchema]
 ) -> str:
     return (
-        f"{_format_schema(schema)}\n\n"
+        f"{_format_schemas(schemas)}\n\n"
         f"Question originale de l'utilisateur : {question}\n\n"
         f"Requête SQL générée précédemment (incorrecte) :\n{sql}\n\n"
         f"Message d'erreur retourné par DuckDB lors de l'exécution :\n{error_message}\n\n"
@@ -322,7 +337,7 @@ def build_agent_step_user_message(request: AgentStepRequest) -> str:
         else ""
     )
     return (
-        f"{_format_schema(request.schema_)}\n\n"
+        f"{_format_schemas([request.schema_] + request.secondary_tables)}\n\n"
         f"Historique des requêtes déjà exécutées :\n{_format_agent_history(request.history)}\n\n"
         f"{budget_note}"
         f"{chart_reminder}"
